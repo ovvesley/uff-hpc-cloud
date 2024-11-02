@@ -1,9 +1,9 @@
-import os
-import time
-from googleapiclient import discovery
-from google.oauth2.service_account import Credentials
-from dotenv import load_dotenv
 from typing import Optional, Dict, Any
+import os
+from dotenv import load_dotenv
+from google.oauth2.service_account import Credentials
+from googleapiclient import discovery
+import time
 
 load_dotenv()
 
@@ -21,11 +21,11 @@ def get_instance_status(instance_name: str) -> Optional[str]:
     except Exception as e:
         return None 
 
-def create_instance(instance_name: str) -> Dict[str, Any]:
+def create_instance(instance_name: str, family_type="e2-medium", startup_script="") -> Dict[str, Any]:
     """Cria uma nova máquina virtual com Ubuntu."""
     config: Dict[str, Any] = {
         "name": instance_name,
-        "machineType": f"zones/{ZONE}/machineTypes/e2-medium",
+        "machineType": f"zones/{ZONE}/machineTypes/{family_type}",
         "disks": [
             {
                 "boot": True,
@@ -47,7 +47,7 @@ def create_instance(instance_name: str) -> Dict[str, Any]:
             "items": [
                 {
                     "key": "startup-script",
-                    "value": get_startup_script()
+                    "value": startup_script
                 }
             ]
         }
@@ -72,13 +72,13 @@ def wait_for_operation(operation: Dict[str, Any]) -> None:
             break
         time.sleep(5)
 
-def create_or_run_instance(instance_name: str) -> None:
+def create_or_run_instance(instance_name: str, family_type="e2-medium", startup_script="") -> None:
     """Verifica, inicia ou cria a instância."""
     status: Optional[str] = get_instance_status(instance_name)
     
     if status is None:
         print(f"Instance {instance_name} does not exist. Creating...")
-        operation: Dict[str, Any] = create_instance(instance_name)
+        operation: Dict[str, Any] = create_instance(instance_name, family_type, startup_script)
         wait_for_operation(operation)
     elif status == 'TERMINATED':
         print(f"Instance {instance_name} is terminated. Starting...")
@@ -109,23 +109,7 @@ def set_startup_script(instance_name: str, startup_script: str) -> Dict[str, Any
         print(f"An error occurred: {e}")
         return {}
 
-def get_startup_script() -> str:
+def get_startup_script(script_name: str) -> str:
     """Retorna o script de inicialização."""
-    with open('startup01.sh', 'r') as file:
+    with open(script_name, 'r') as file:
         return file.read()
-
-def main() -> None:
-    instance01: str = 'instance-01-medium'
-    instance02: str = 'instance-02-medium'
-    instance03: str = 'instance-03-medium'
-    
-    create_or_run_instance(instance01)
-    create_or_run_instance(instance02)
-    create_or_run_instance(instance03)
-
-    for instance in [instance01, instance02, instance03]:
-        status: Optional[str] = get_instance_status(instance)
-        print(f"{instance} is {status}")
-
-if __name__ == '__main__':
-    main()
